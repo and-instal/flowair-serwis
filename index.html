@@ -402,11 +402,16 @@ const CAT_LABELS = { param:'Parametryzacja/nastawa', sw:'Oprogramowanie sterowni
 
 let state = { prio:'med', cat:'', repr:'', aiMsgs:[], aiDone:false, aiVerdict:'' };
 
-// Generuj nr zgłoszenia
-(function(){
-  const d = new Date();
-  const id = 'ZGL-' + d.getFullYear() + '-' + String(Math.floor(Math.random()*9000)+1000);
-  document.getElementById('zglos-id').textContent = id;
+// Pobierz kolejny numer zgłoszenia z serwera
+(async function(){
+  try {
+    const res = await fetch('https://domeny.and-instal.pl/serwis-next-id.php');
+    const data = await res.json();
+    document.getElementById('zglos-id').textContent = data.id;
+  } catch(e) {
+    const d = new Date();
+    document.getElementById('zglos-id').textContent = 'ZGL-' + d.getFullYear() + '-????';
+  }
 })();
 
 function setPrio(p, el) {
