@@ -235,6 +235,10 @@
         <div class="field"><label>Koordynator / oddział</label>
           <input type="text" id="rejon" placeholder="np. Koordynator Południe" /></div>
       </div>
+      <div class="field-row">
+        <div class="field"><label>Adres e-mail zgłaszającego <span class="req">*</span></label>
+          <input type="email" id="zglos_email" placeholder="imie.nazwisko@flowair.pl" /></div>
+      </div>
       <div class="field"><label>Priorytet zgłoszenia</label>
         <div class="prio-row">
           <button class="prio-btn" onclick="setPrio('low',this)">&#9642; Niski</button>
@@ -441,7 +445,8 @@ function goStep(n) {
         !document.getElementById('urzadzenie').value.trim() ||
         !document.getElementById('fw_ver').value.trim() ||
         !document.getElementById('app_ver').value.trim() ||
-        !document.getElementById('zglos_name').value.trim()) {
+        !document.getElementById('zglos_name').value.trim() ||
+        !document.getElementById('zglos_email').value.trim()) {
       alert('Uzupełnij wszystkie wymagane pola (oznaczone gwiazdką).'); return;
     }
   }
@@ -715,6 +720,7 @@ async function submitFinal() {
     appVer:     document.getElementById('app_ver').value,
     nrProj:     document.getElementById('nr_proj').value,
     zglosName:  document.getElementById('zglos_name').value,
+    zglosEmail: document.getElementById('zglos_email').value,
     rejon:      document.getElementById('rejon').value,
     prio:       state.prio,
     cat:        CAT_LABELS[state.cat] || state.cat,
