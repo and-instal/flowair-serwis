@@ -632,13 +632,58 @@ function buildSummary() {
   }
 }
 
-function submitFinal() {
+async function submitFinal() {
   const alertEl = document.getElementById('summary-alert');
-  alertEl.className = 'alert alert-ok';
-  alertEl.textContent = 'Zgłoszenie ' + document.getElementById('zglos-id').textContent + ' zostało wysłane.';
-  document.querySelector('#step5 .btn-row').innerHTML =
-    '<button class="btn primary" onclick="location.reload()">&#8635; Nowe zgłoszenie</button>';
-  // Tutaj można dodać wysyłkę fetch() do własnego backendu / e-mail API
+  const btnRow  = document.querySelector('#step5 .btn-row');
+
+  alertEl.className = 'alert alert-info';
+  alertEl.textContent = 'Wysyłanie zgłoszenia...';
+  btnRow.innerHTML = '';
+
+  const checks = Array.from(document.querySelectorAll('#checklist-container input[type=checkbox]'))
+    .map(c => (c.checked ? '[✓] ' : '[ ] ') + c.nextElementSibling.textContent.replace(/\n.*/,''))
+    .join('\n');
+
+  const payload = {
+    zglosId:    document.getElementById('zglos-id').textContent,
+    obiekt:     document.getElementById('obiekt').value,
+    urzadzenie: document.getElementById('urzadzenie').value,
+    fwVer:      document.getElementById('fw_ver').value,
+    appVer:     document.getElementById('app_ver').value,
+    nrProj:     document.getElementById('nr_proj').value,
+    zglosName:  document.getElementById('zglos_name').value,
+    rejon:      document.getElementById('rejon').value,
+    prio:       state.prio,
+    cat:        CAT_LABELS[state.cat] || state.cat,
+    opis:       document.getElementById('opis_objaw').value,
+    kiedy:      document.getElementById('kiedy').value,
+    repr:       state.repr,
+    checklist:  checks,
+    komentarz:  document.getElementById('komentarz').value,
+    aiVerdict:  state.aiVerdict || '',
+  };
+
+  try {
+    const res = await fetch('https://domeny.and-instal.pl/serwis-mail.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alertEl.className = 'alert alert-ok';
+      alertEl.textContent = 'Zgłoszenie ' + payload.zglosId + ' zostało wysłane.';
+    } else {
+      throw new Error(data.error || 'Nieznany błąd');
+    }
+  } catch(e) {
+    alertEl.className = 'alert alert-warn';
+    alertEl.textContent = 'Błąd wysyłki: ' + e.message + '. Spróbuj ponownie.';
+    btnRow.innerHTML = '<button class="btn primary" onclick="submitFinal()">&#9658; Spróbuj ponownie</button>';
+    return;
+  }
+
+  btnRow.innerHTML = '<button class="btn primary" onclick="location.reload()">&#8635; Nowe zgłoszenie</button>';
 }
 </script>
 </body>
