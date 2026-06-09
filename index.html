@@ -232,12 +232,8 @@
       <div class="field-row">
         <div class="field"><label>Imię i nazwisko <span class="req">*</span></label>
           <input type="text" id="zglos_name" placeholder="Serwisant / koordynator" /></div>
-        <div class="field"><label>Rejon / oddział <span class="req">*</span></label>
-          <select id="rejon">
-            <option value="">— wybierz —</option>
-            <option>Północ</option><option>Południe</option>
-            <option>Wschód</option><option>Zachód</option><option>Centralny</option>
-          </select></div>
+        <div class="field"><label>Koordynator / oddział</label>
+          <input type="text" id="rejon" placeholder="np. Koordynator Południe" /></div>
       </div>
       <div class="field"><label>Priorytet zgłoszenia</label>
         <div class="prio-row">
@@ -269,7 +265,7 @@
       <div class="field"><label>Co się dzieje? Opisz konkretny objaw <span class="req">*</span></label>
         <textarea id="opis_objaw" placeholder="np. Wentylator nawiewny nie uruchamia się po sygnale startu. Na wyświetlaczu HMI brak komunikatu błędu."></textarea></div>
       <div class="field"><label>Kiedy pojawił się problem?</label>
-        <select id="kiedy">
+        <select id="kiedy" onchange="toggleKiedyInne(this.value)">
           <option value="">— wybierz —</option>
           <option>Przy pierwszym uruchomieniu</option>
           <option>Po aktualizacji oprogramowania</option>
@@ -277,7 +273,12 @@
           <option>Nagle, bez zmian konfiguracji</option>
           <option>Cyklicznie / nieregularnie</option>
           <option>Po przerwie w zasilaniu</option>
+          <option value="inne">Inne</option>
         </select></div>
+      <div class="field" id="kiedy-inne-field" style="display:none">
+        <label>Opisz kiedy pojawił się problem <span class="req">*</span></label>
+        <input type="text" id="kiedy_inne" placeholder="Opisz okoliczności pojawienia się problemu..." />
+      </div>
       <div class="field"><label>Czy problem jest odtwarzalny?</label>
         <div class="prio-row">
           <button class="prio-btn" id="repr_tak" onclick="setRepr('tak',this)">Tak, zawsze</button>
@@ -299,7 +300,7 @@
     </div>
     <div class="card" id="checklist-container"></div>
     <div id="checklist-warning" class="alert alert-warn" style="display:none; margin-top:0.5rem;">
-      Nie wszystkie punkty zostały odhaczyane. Uzupełnij lub opisz powód pominięcia w komentarzu.
+      Dla każdego nieodhaczyowanego punktu wymagane jest podanie powodu pominięcia.
     </div>
     <div class="field" style="margin-top:1rem;">
       <label style="font-size:13px;color:var(--text2);">Komentarz / dodatkowe informacje</label>
@@ -440,8 +441,7 @@ function goStep(n) {
         !document.getElementById('urzadzenie').value.trim() ||
         !document.getElementById('fw_ver').value.trim() ||
         !document.getElementById('app_ver').value.trim() ||
-        !document.getElementById('zglos_name').value.trim() ||
-        !document.getElementById('rejon').value) {
+        !document.getElementById('zglos_name').value.trim()) {
       alert('Uzupełnij wszystkie wymagane pola (oznaczone gwiazdką).'); return;
     }
   }
@@ -451,6 +451,10 @@ function goStep(n) {
     buildChecklist();
   }
   if (n === 4) {
+    if (!validateChecklist()) {
+      document.getElementById('checklist-warning').style.display = 'block';
+      return;
+    }
     const total = document.querySelectorAll('#checklist-container input[type=checkbox]').length;
     const done  = Array.from(document.querySelectorAll('#checklist-container input[type=checkbox]')).filter(c=>c.checked).length;
     document.getElementById('checklist-warning').style.display = done < total ? 'block' : 'none';
@@ -468,6 +472,39 @@ function goStep(n) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function toggleKiedyInne(val) {
+  const f = document.getElementById('kiedy-inne-field');
+  f.style.display = val === 'inne' ? 'block' : 'none';
+  if (val !== 'inne') document.getElementById('kiedy_inne').value = '';
+}
+
+function togglePominiety(id, checked) {
+  const d = document.getElementById('ci_' + id);
+  d.classList.toggle('done', checked);
+  const pom = document.getElementById('pom_' + id);
+  if (pom) {
+    pom.style.display = checked ? 'none' : 'block';
+    const txt = document.getElementById('pom_txt_' + id);
+    if (checked && txt) { txt.value = ''; txt.style.borderColor = ''; }
+  }
+}
+
+function validateChecklist() {
+  const items = document.querySelectorAll('#checklist-container input[type=checkbox]');
+  for (const chk of items) {
+    if (!chk.checked) {
+      const id = chk.id.replace('chk_', '');
+      const txt = document.getElementById('pom_txt_' + id);
+      if (txt && !txt.value.trim()) {
+        txt.focus();
+        txt.style.borderColor = 'var(--red-border)';
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function buildChecklist() {
   const items = CHECKLISTS[state.cat] || [];
   const c = document.getElementById('checklist-container');
@@ -476,8 +513,15 @@ function buildChecklist() {
     const d = document.createElement('div');
     d.className = 'checklist-item';
     d.id = 'ci_' + item.id;
-    d.innerHTML = `<input type="checkbox" id="chk_${item.id}" onchange="this.closest('.checklist-item').classList.toggle('done',this.checked)" />
-      <label for="chk_${item.id}">${item.t}${item.h ? '<small>' + item.h + '</small>' : ''}</label>`;
+    d.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px;width:100%">
+      <input type="checkbox" id="chk_${item.id}" onchange="togglePominiety('${item.id}',this.checked)" style="margin-top:3px;flex-shrink:0" />
+      <div style="flex:1">
+        <label for="chk_${item.id}" style="cursor:pointer">${item.t}${item.h ? '<small style=\"display:block;font-size:12px;color:var(--text2);margin-top:2px\">' + item.h + '</small>' : ''}</label>
+        <div id="pom_${item.id}" style="display:none;margin-top:6px">
+          <input type="text" id="pom_txt_${item.id}" placeholder="Powód pominięcia (wymagane)..." style="font-size:13px;border-color:var(--red-border)" />
+        </div>
+      </div>
+    </div>`;
     c.appendChild(d);
   });
 }
@@ -519,7 +563,14 @@ async function sendMsg() {
   inp.disabled = true;
 
   const checks = Array.from(document.querySelectorAll('#checklist-container input[type=checkbox]'))
-    .map(c => (c.checked ? '[✓] ' : '[ ] ') + c.nextElementSibling.textContent.replace(/\n.*/,''))
+    .map(c => {
+      const id = c.id.replace('chk_', '');
+      const label = c.closest('div').querySelector('label').textContent.replace(/\n.*/,'').trim();
+      if (c.checked) return '[✓] ' + label;
+      const pom = document.getElementById('pom_txt_' + id);
+      const powod = pom ? pom.value.trim() : '';
+      return '[ ] ' + label + (powod ? ' — POMINIĘTO: ' + powod : '');
+    })
     .join('\n');
 
   const system = `Jesteś doświadczonym ekspertem ds. automatyki i sterowników firmy Flowair (systemy wentylacji, ogrzewania, chłodzenia — HVAC/HRV).
@@ -646,7 +697,14 @@ async function submitFinal() {
   btnRow.innerHTML = '';
 
   const checks = Array.from(document.querySelectorAll('#checklist-container input[type=checkbox]'))
-    .map(c => (c.checked ? '[✓] ' : '[ ] ') + c.nextElementSibling.textContent.replace(/\n.*/,''))
+    .map(c => {
+      const id = c.id.replace('chk_', '');
+      const label = c.closest('div').querySelector('label').textContent.replace(/\n.*/,'').trim();
+      if (c.checked) return '[✓] ' + label;
+      const pom = document.getElementById('pom_txt_' + id);
+      const powod = pom ? pom.value.trim() : '';
+      return '[ ] ' + label + (powod ? ' — POMINIĘTO: ' + powod : '');
+    })
     .join('\n');
 
   const payload = {
@@ -661,7 +719,9 @@ async function submitFinal() {
     prio:       state.prio,
     cat:        CAT_LABELS[state.cat] || state.cat,
     opis:       document.getElementById('opis_objaw').value,
-    kiedy:      document.getElementById('kiedy').value,
+    kiedy:      document.getElementById('kiedy').value === 'inne'
+                ? ('Inne: ' + document.getElementById('kiedy_inne').value)
+                : document.getElementById('kiedy').value,
     repr:       state.repr,
     checklist:  checks,
     komentarz:  document.getElementById('komentarz').value,
